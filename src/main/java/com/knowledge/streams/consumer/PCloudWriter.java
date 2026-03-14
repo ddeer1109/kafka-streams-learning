@@ -75,15 +75,10 @@ public class PCloudWriter {
         String slug = slugify(enriched.getNote().getTitle());
 
         try {
-            // Write JSON (machine-readable, full data)
             Path jsonDir = outputBase.resolve("enriched").resolve(domain);
             Files.createDirectories(jsonDir);
             Path jsonFile = jsonDir.resolve(slug + ".json");
             mapper.writeValue(jsonFile.toFile(), enriched);
-
-            // Write Markdown (human-readable summary)
-            Path mdFile = jsonDir.resolve(slug + ".md");
-            Files.writeString(mdFile, toMarkdown(enriched));
 
             log.info("Wrote enriched note to pCloud: {}/{}", domain, slug);
         } catch (IOException e) {
@@ -142,36 +137,6 @@ public class PCloudWriter {
         }
 
         Files.writeString(statsDir.resolve("_summary.md"), sb.toString());
-    }
-
-    private String toMarkdown(EnrichedNote enriched) {
-        var note = enriched.getNote();
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("# ").append(note.getTitle()).append("\n\n");
-
-        if (note.getTags() != null && !note.getTags().isEmpty()) {
-            sb.append("**Tags:** ").append(String.join(", ", note.getTags())).append("\n");
-        }
-        sb.append("**Domain:** ").append(enriched.getDomain()).append("\n");
-        sb.append("**Domain note count:** ").append(enriched.getDomainNoteCount()).append("\n");
-
-        if (enriched.getRelatedDomains() != null && !enriched.getRelatedDomains().isEmpty()) {
-            sb.append("**Related domains:** ").append(String.join(", ", enriched.getRelatedDomains())).append("\n");
-        }
-
-        sb.append("**Enriched at:** ").append(
-                enriched.getEnrichedAt() != null ? TIME_FMT.format(enriched.getEnrichedAt()) : "—"
-        ).append("\n");
-
-        sb.append("\n---\n\n");
-        sb.append(note.getContent()).append("\n");
-
-        if (note.getSourcePath() != null) {
-            sb.append("\n---\n_Source: ").append(note.getSourcePath()).append("_\n");
-        }
-
-        return sb.toString();
     }
 
     private String slugify(String title) {

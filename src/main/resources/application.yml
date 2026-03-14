@@ -60,7 +60,7 @@ knowledge:
   #   /mnt/p/                                    (if pCloud uses P: drive)
   #   /mnt/c/Users/<username>/pCloudDrive        (default install)
   pcloud:
-    enabled: false
+    enabled: true
     base-path: /mnt/p/KnowledgeHub
     watch-interval-ms: 5000
     # Output is written to {base-path}/.output/ by PCloudWriter

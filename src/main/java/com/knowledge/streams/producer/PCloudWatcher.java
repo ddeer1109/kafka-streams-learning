@@ -10,6 +10,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.Instant;
@@ -47,17 +50,24 @@ public class PCloudWatcher {
             "devops", "fullstack", "music", "ai-context", "general"
     );
 
+    private static final String STATE_FILE = ".watcher-state.json";
+
     private final NoteProducer producer;
     private final Path basePath;
+    private final Path stateFile;
+    private final ObjectMapper mapper = new ObjectMapper();
 
-    // Track file modification times to detect changes
-    private final Map<Path, Long> knownFiles = new ConcurrentHashMap<>();
+    // Track file modification times to detect changes — persisted to disk
+    private final Map<String, Long> knownFiles = new ConcurrentHashMap<>();
 
     public PCloudWatcher(NoteProducer producer,
                          @Value("${knowledge.pcloud.base-path}") String basePath) {
         this.producer = producer;
         this.basePath = Paths.get(basePath);
-        log.info("pCloud watcher initialized, watching: {}", this.basePath);
+        this.stateFile = this.basePath.resolve(STATE_FILE);
+        loadState();
+        log.info("pCloud watcher initialized, watching: {} ({} files tracked)",
+                this.basePath, knownFiles.size());
     }
 
     @Scheduled(fixedDelayString = "${knowledge.pcloud.watch-interval-ms:5000}")
@@ -72,6 +82,7 @@ public class PCloudWatcher {
                     .filter(Files::isRegularFile)
                     // Skip .output directory to avoid re-ingesting our own output
                     .filter(p -> !p.toString().contains("/.output/"))
+                    .filter(p -> !p.getFileName().toString().equals(STATE_FILE))
                     .filter(p -> {
                         String name = p.getFileName().toString().toLowerCase();
                         return name.endsWith(".md") || name.endsWith(".txt");
@@ -85,14 +96,15 @@ public class PCloudWatcher {
     private void processFile(Path filePath) {
         try {
             long lastModified = Files.getLastModifiedTime(filePath).toMillis();
-            Long previousModified = knownFiles.get(filePath);
+            String fileKey = filePath.toString();
+            Long previousModified = knownFiles.get(fileKey);
 
             if (previousModified != null && previousModified == lastModified) {
                 return; // File unchanged
             }
 
             boolean isNew = previousModified == null;
-            knownFiles.put(filePath, lastModified);
+            knownFiles.put(fileKey, lastModified);
 
             String content = Files.readString(filePath);
             String domain = inferDomain(filePath);
@@ -111,6 +123,7 @@ public class PCloudWatcher {
 
             NoteEvent.EventType eventType = isNew ? NoteEvent.EventType.CREATED : NoteEvent.EventType.UPDATED;
             producer.publishNote(note, eventType, "pcloud");
+            saveState();
 
             log.info("Published {} note from pCloud: {} [{}]",
                     isNew ? "new" : "updated", title, domain);
@@ -164,5 +177,27 @@ public class PCloudWatcher {
     private String generateStableId(Path filePath) {
         // Stable ID based on file path, so the same file always gets the same ID
         return UUID.nameUUIDFromBytes(filePath.toString().getBytes()).toString();
+    }
+
+    private void loadState() {
+        if (Files.exists(stateFile)) {
+            try {
+                Map<String, Long> saved = mapper.readValue(
+                        stateFile.toFile(),
+                        new TypeReference<Map<String, Long>>() {});
+                knownFiles.putAll(saved);
+                log.info("Loaded watcher state: {} tracked files", saved.size());
+            } catch (IOException e) {
+                log.warn("Could not load watcher state, starting fresh: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void saveState() {
+        try {
+            mapper.writeValue(stateFile.toFile(), knownFiles);
+        } catch (IOException e) {
+            log.warn("Could not persist watcher state: {}", e.getMessage());
+        }
     }
 }
