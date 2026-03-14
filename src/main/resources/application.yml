@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: knowledge-stream-hub
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    # Producer defaults
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+    # Consumer defaults
+    consumer:
+      group-id: knowledge-stream-hub
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.knowledge.streams.model"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: "com.knowledge.streams.model.NoteEvent"
+
+    # Kafka Streams configuration
+    streams:
+      application-id: knowledge-stream-hub
+      properties:
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        # Commit interval - how often stream processor commits offsets
+        commit.interval.ms: 1000
+        # State store directory (local to this instance)
+        state.dir: /tmp/kafka-streams/knowledge-hub
+
+server:
+  port: 8080
+
+# Application-specific config
+knowledge:
+  topics:
+    # Inbound: raw note events land here
+    notes-inbound: notes.inbound
+    # Domain-specific topics (populated by the routing topology)
+    notes-devops: notes.devops
+    notes-fullstack: notes.fullstack
+    notes-music: notes.music
+    notes-ai-context: notes.ai-context
+    notes-general: notes.general
+    # Enriched output
+    notes-enriched: notes.enriched
+    # Stats
+    domain-stats: domain.stats
+    # Dead letter queue
+    notes-dlq: notes.dlq
+
+  # pCloud base path - adjust to your actual mount point
+  # Common locations on WSL:
+  #   /mnt/p/                                    (if pCloud uses P: drive)
+  #   /mnt/c/Users/<username>/pCloudDrive        (default install)
+  pcloud:
+    enabled: false
+    base-path: /mnt/p/KnowledgeHub
+    watch-interval-ms: 5000
