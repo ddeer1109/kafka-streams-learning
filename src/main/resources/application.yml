@@ -63,3 +63,5 @@ knowledge:
     enabled: false
     base-path: /mnt/p/KnowledgeHub
     watch-interval-ms: 5000
+    # Output is written to {base-path}/.output/ by PCloudWriter
+    # Structure: .output/enriched/{domain}/*.json|md, .output/stats/*.json|md

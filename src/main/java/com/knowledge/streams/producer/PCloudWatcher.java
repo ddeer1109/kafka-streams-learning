@@ -70,6 +70,8 @@ public class PCloudWatcher {
         try (Stream<Path> paths = Files.walk(basePath, 2)) {
             paths
                     .filter(Files::isRegularFile)
+                    // Skip .output directory to avoid re-ingesting our own output
+                    .filter(p -> !p.toString().contains("/.output/"))
                     .filter(p -> {
                         String name = p.getFileName().toString().toLowerCase();
                         return name.endsWith(".md") || name.endsWith(".txt");
