@@ -1,0 +1,17 @@
+kafka:
+  bootstrap_servers: "localhost:9092"
+  topic: "notes.inbound"
+  consumer_group: "notes-to-pcloud"
+  acks: "all"                  # "all", "1", or "0" — experiment with these
+  auto_offset_reset: "earliest"
+  enable_auto_commit: false    # We commit manually after successful file write
+
+google_tasks:
+  list_name: "Kafka Inbox"
+
+routing:
+  lyrics: "/mnt/p/KnowledgeHub/lyrics-inbox.md"
+  vlog: "/mnt/p/KnowledgeHub/vlog-ideas.md"
+  training: "/mnt/p/KnowledgeHub/training-protocols.md"
+  swiss: "/mnt/p/KnowledgeHub/important-switzerland-public.md"
+  _default: "/mnt/p/KnowledgeHub/general-inbox.md"
